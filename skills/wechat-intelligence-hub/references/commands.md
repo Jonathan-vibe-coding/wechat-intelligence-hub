@@ -38,7 +38,7 @@ $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh contact-daily --hours
 $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh brief --hours 24
 ```
 
-48 小时请求把 `--hours` 改为 `48`，并确保索引窗口覆盖相同范围。
+24/48 小时只是常用窗口。其他相对时长可调整 `--hours`；一周、一个月或自定义范围优先使用 `--since` 与 `--until`，并确保索引、群聊、联系人和总览使用相同边界。
 
 群聊日报：
 
@@ -55,7 +55,7 @@ $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh contact-daily --hours
 
 交付边界：`group-daily` 先产生机器初筛，语义编辑后分别输出 `group_daily_topics.md` 和 `group_daily_groups.md`；`contact-daily` 负责关系推进，`brief` 只做跨报告行动总览。跨群 URL 在商单雷达中只出现一次，群聊主题不重复粘贴。
 
-交付形式默认遵循 `delivery=auto`：定制问题直接在 Codex 回答；完整 24/48 小时复合日报在群聊和私信语义编辑后，生成短 Markdown 入口、完整分区 Markdown 和旗舰版交互 HTML：
+交付形式默认遵循 `delivery=auto`：定制问题直接在 Codex 回答；完整多会话日报、周报、月报或指定时间段报告在群聊和私信语义编辑后，生成短 Markdown 入口、完整分区 Markdown 和旗舰版交互 HTML：
 
 ```bash
 $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh render-bundle \
@@ -79,6 +79,18 @@ $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh person "品牌联系�
 $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh reply "品牌联系人"
 $HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh topic "培训" --keyword "赚钱" --days 7
 ```
+
+定向调查可以组合对象与时间范围：
+
+```bash
+$HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh chat-history "联系人或群名" --since "2026-08-01" --until "2026-09-01" --query "项目名"
+$HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh chat-search "产品名" --since "2026-08-01" --until "2026-09-01"
+$HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh topic "项目名" --keyword "产品别名" --since "2026-08-01"
+$HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh wechat-labels --label "品牌方" --out output/brand-contacts
+$HOME/.codex/skills/wechat-intelligence-hub/scripts/hub.sh db-index --scope labels --label "品牌方" --since "2026-08-01" --out output/brand-index
+```
+
+“某物”必须先转换为可搜索的名称、别名或关键词，例如产品、工具、课程、公司、品牌、文件或链接。匹配到多个同名对象时先消歧；不得将字符串命中直接冒充同一实体或同一事件。
 
 `reply` 只生成本地草稿。先在个人 Profile 的 `owner_aliases` 配置使用者自己的微信昵称。若用户说“刚回复”，先刷新或读取最新聊天，再运行 `reply`。默认用最近 30 天本人跨联系人私聊的长度特征约束输出，并在当前联系人至少有 5 条本人消息后学习其专属口语；可用 `--style-days` 和 `--minimum-chat-messages` 覆盖 Profile。它先检查本人是否已经回复；已回复时返回“不用追发”，而不是继续套模板。
 

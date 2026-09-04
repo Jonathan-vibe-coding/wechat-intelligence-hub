@@ -1,6 +1,6 @@
 ---
 name: wechat-intelligence-hub
-description: WeChat Intelligence Hub（微信个人情报库），本地只读微信情报 Skill。用于检索全部微信聊天、查看联系人和共同群历史、生成24/48小时群聊与私聊简报、发现并跟进商单/培训/咨询/项目合作、聚合跨群链接、检查待回复和待兑现承诺、维护商机状态及筛选值得复联的品牌方、中间人和自媒体博主。Use whenever the user invokes 微信个人情报库、WeChat Intelligence Hub、微信商单雷达、Deal Radar，或询问某人/某主题聊过什么、最近微信有什么新机会、谁需要回复或复联。
+description: WeChat Intelligence Hub（微信个人情报库），本地只读微信情报 Skill。用于按任意明确时间范围，或围绕某条信息、某个人、某个群、某个产品/物品、某个微信标签、某个项目或事件检索和总结微信聊天；也用于生成群聊与私聊报告、发现并跟进商单/培训/咨询/项目合作、聚合跨群链接、检查待回复和待兑现承诺、维护商机状态及筛选值得复联的人。Use whenever the user invokes 微信个人情报库、WeChat Intelligence Hub、微信商单雷达、Deal Radar，或询问某人/某主题/某件事聊过什么、最近微信有什么新机会、谁需要回复或复联。
 ---
 
 # 微信个人情报库
@@ -28,7 +28,7 @@ description: WeChat Intelligence Hub（微信个人情报库），本地只读�
 
 主动建议用户在微信中按自己的关系和工作流建立 2–5 个标签，例如客户、同行、渠道、供应商、自媒体网友或品牌方。这些名称只是示例，不是公共默认工作流。可以只读列出现有标签并给候选建议，但不得自动修改微信标签，也不得未经确认猜测标签含义。
 
-完整 24/48 小时报告运行前检查个性化状态。状态未就绪时仍可用通用维度生成报告，但要明确提示排序尚未结合个人目标；精确关键词与全微信搜索不得受标签限制。
+完整多会话时间范围报告运行前检查个性化状态。24/48 小时只是常用窗口，也可以按用户指定的一天、一周、一个月或明确起止日期处理。状态未就绪时仍可用通用维度生成报告，但要明确提示排序尚未结合个人目标；精确关键词与全微信搜索不得受标签限制。
 
 统一命令入口：
 
@@ -40,7 +40,7 @@ description: WeChat Intelligence Hub（微信个人情报库），本地只读�
 
 ## Delivery Router
 
-默认使用 `delivery=auto`，根据请求选择直接文字、Markdown 或 HTML。单个联系人、单一品牌/项目、关键词核实和回复建议通常直接在 Codex 回答，不为定制问答生成 HTML。完整 24/48 小时复合日报默认保存短 Markdown 入口和完整分区 Markdown，并从本轮报告目录生成旗舰版交互 HTML；周报、月报或明确要求网页时也使用综合 HTML。详细规则见 [references/delivery.md](references/delivery.md)。
+默认使用 `delivery=auto`，根据请求选择直接文字、Markdown 或 HTML。单个联系人、单一品牌/项目/事件、关键词核实和回复建议通常直接在 Codex 回答，不为定制问答生成 HTML。完整多会话日报、周报、月报、指定时间段报告或明确要求网页的定向调查，默认保存短 Markdown 入口和完整分区 Markdown，并从本轮报告目录生成旗舰版交互 HTML。详细规则见 [references/delivery.md](references/delivery.md)。
 
 `wechat-cli` 的原始输出和本 Skill 的机器初筛是证据层，不决定交付形式。不要为了给用户一个文件而扩大扫描范围，也不要把文件路径代替结论。
 
@@ -52,6 +52,9 @@ description: WeChat Intelligence Hub（微信个人情报库），本地只读�
 |---|---|---|
 | 不知道如何使用、查看首页 | `home` | 展示五入口和当前状态 |
 | 过去 24/48 小时发生了什么 | `group-daily` + `contact-daily` + `brief` | 刷新近期群聊、私聊和重点标签；分别生成群聊日报与重点联系人日报，再给短行动总览 |
+| 指定日期范围发生了什么 | `group-daily` + `contact-daily` + `brief` | 将范围转换为明确 `since / until`，确保索引和各报告使用相同边界 |
+| 某条信息、产品、物品、项目或事件的来龙去脉 | `chat-search` + `topic` | 先用名称、别名和关键词定位，再读取命中上下文并按事件时间线去重总结 |
+| 某个微信标签中的联系人进展 | `wechat-labels` + `db-index --scope labels` + `contact-daily` | 用标签限定联系人范围，再按用户指定时间和任务汇总；不得修改微信标签 |
 | 今日微信群日报 | `group-daily` + 语义编辑 | 扫描指定窗口；先按真实话题/事件归纳，再按群追溯上下文 |
 | 品牌方/中间人/自媒体博主私聊日报 | `contact-daily` | 单独汇总重点私聊，区分待回复、等待对方和留意，并给回复方向 |
 | 某主题在所有聊天里出现在哪里 | `topic` | 已有索引不足时先做定向实时搜索 |
@@ -106,7 +109,7 @@ description: WeChat Intelligence Hub（微信个人情报库），本地只读�
 
 “红包、三连、四连、已加热、截图结算”等纯互动协调只是投放雷达证据，不是群聊话题，不进入重点群聊。只有同条消息同时出现明确品牌/项目、招募、预算、名额、brief 或截止时间时，才保留其实质合作内容。
 
-`contact-daily` 是独立的关系推进日报，不混入微信群日报的 Markdown 正文。用户请求“过去 24/48 小时群聊和品牌方、中间人、自媒体博主私信”时，必须先分别生成两份语义报告，再用短总览合并最重要的行动；综合 HTML 可以将两者作为独立栏目放在同一阅读器中，但不得把私信逐条塞进群聊栏目。当 Profile 设置 `contact_daily.scope=priority_labels_only` 时，重点联系人页只收录 `labels.priority / commercial / creator` 中的微信标签联系人；其他人的商业信号仍可进入全微信检索、群聊雷达和商机库，但不占用该页主列表。
+`contact-daily` 是独立的关系推进日报，不混入微信群日报的 Markdown 正文。用户请求某个时间范围内的群聊和重点联系人私信时，必须先分别生成两份语义报告，再用短总览合并最重要的行动；综合 HTML 可以将两者作为独立栏目放在同一阅读器中，但不得把私信逐条塞进群聊栏目。当 Profile 设置 `contact_daily.scope=priority_labels_only` 时，重点联系人页只收录 `labels.priority / commercial / creator` 中的微信标签联系人；其他人的商业信号仍可进入全微信检索、群聊雷达和商机库，但不占用该页主列表。
 
 ## Commercial Reasoning
 
