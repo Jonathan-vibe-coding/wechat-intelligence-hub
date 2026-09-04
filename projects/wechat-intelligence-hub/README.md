@@ -49,6 +49,8 @@
 
 ## 快速使用
 
+面向普通使用者的完整教程见仓库根目录 [`docs/USAGE.md`](../../docs/USAGE.md)，包括首次检查、个人 Profile、常用自然语言请求，以及 Markdown + HTML 双版本输出方法。
+
 在 Codex 中优先调用：
 
 ```text

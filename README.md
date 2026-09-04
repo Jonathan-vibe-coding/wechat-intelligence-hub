@@ -91,6 +91,49 @@ $wechat-intelligence-hub 帮我初始化微信个人情报库。先查找我现�
 $wechat-intelligence-hub 查看过去 24 小时微信里最需要我处理的事情
 ```
 
+## 在 Codex 中怎么使用
+
+安装并完成初始化后，不需要记命令行参数，可以直接用自然语言调用：
+
+```text
+$wechat-intelligence-hub 生成过去 24 小时的完整微信情报日报，分析群聊、重点联系人、待回复事项和商业机会。
+
+$wechat-intelligence-hub 总结我和「联系人名字」最近聊到哪里，还有什么承诺没有完成。
+
+$wechat-intelligence-hub 搜索过去 7 天所有微信聊天里关于「AI 培训」的讨论。
+
+$wechat-intelligence-hub 查看今天最需要我处理的 10 件事。
+
+$wechat-intelligence-hub 根据最新聊天上下文，帮我给「联系人名字」写一条符合我语气的回复草稿。
+```
+
+### 完整日报同时输出 Markdown 和 HTML
+
+完整的 24/48 小时复合日报默认保留两种正式版本：
+
+- **Markdown 版**：适合阅读、复制、归档和继续交给 AI 加工。
+- **交互式 HTML 版**：适合搜索、筛选和浏览，包含综合行动、群聊日报、重点联系人和商单信号雷达四个入口。
+
+直接在 Codex 中说：
+
+```text
+$wechat-intelligence-hub 生成过去 24 小时的完整微信情报日报，同时输出 Markdown 和旗舰交互式 HTML。
+```
+
+主要文件包括：
+
+```text
+wechat_daily_full.md          # Markdown 总入口
+wechat-report/                # 分区 Markdown
+wechat_daily_report.html      # 旗舰交互式报告
+```
+
+HTML 版支持全局搜索、分区导航、话题日报/重点群聊/群聊筛选切换、群聊展开、原链接跳转、明暗主题、打印和当前分区 Markdown 下载。报告内容会根据每位使用者的本地聊天、个人 Profile 和当前计划生成，界面与公开仓库中的旗舰渲染器保持一致。
+
+单个联系人、单一关键词和回复建议默认直接在 Codex 中回答，不会为了一个简单问题额外生成网页。如果希望任何报告都保存成双版本，请在请求中明确说“同时输出 Markdown 和 HTML”。
+
+更完整的首次使用、常用提问、输出模式和命令行说明见 [`docs/USAGE.md`](docs/USAGE.md)。
+
 ## 隐私与安全
 
 - 微信相关能力只读，不发送消息，不操作微信 UI。
