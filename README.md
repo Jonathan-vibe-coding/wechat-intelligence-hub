@@ -159,14 +159,6 @@ HTML 版支持全局搜索、分区导航、话题日报/重点群聊/群聊筛�
 
 开源项目和社群是两种交付：前者让任何人能独立使用，后者帮助成员更快把工具变成自己的结果。
 
-## License
-
-本项目采用 **GNU Affero General Public License v3.0 only（AGPL-3.0-only）**。你可以学习、运行、修改和用于商业活动；分发修改版本，或通过网络向用户提供修改版本时，必须履行 AGPL 对应源码等义务。
-
-需要闭源集成、专有发行、OEM、白标或不希望承担 AGPL 义务的企业，可申请[单独商业授权](COMMERCIAL-LICENSE.md)。加入 Rion 的付费社群不会自动改变软件许可证；社群提供的是安装适配、工作流配置、案例、持续更新和实践支持。
-
-第三方依赖继续遵循各自许可证，仓库根许可证不会替换依赖项目的授权声明。已经依据 AGPL 获得的公开版本许可不可撤销，但未来版本可以采用不同的发布方式。
-
 ## 支持这个项目 / Support the Project
 
 如果微信个人情报库帮你少翻了聊天记录、找到了值得跟进的机会，欢迎给项目点个 Star。你的支持会让它持续更新，也让更多人用好自己的聊天信息。
@@ -174,3 +166,11 @@ HTML 版支持全局搜索、分区导航、话题日报/重点群聊/群聊筛�
 If WeChat Intelligence Hub saves you time reviewing chats or helps you spot an opportunity worth following up, please consider giving the project a Star. Your support helps it keep improving.
 
 [前往 GitHub，点个 Star / Star on GitHub](https://github.com/Rion-Wu-tech/wechat-intelligence-hub)
+
+## License
+
+本项目采用 **GNU Affero General Public License v3.0 only（AGPL-3.0-only）**。你可以学习、运行、修改和用于商业活动；分发修改版本，或通过网络向用户提供修改版本时，必须履行 AGPL 对应源码等义务。
+
+需要闭源集成、专有发行、OEM、白标或不希望承担 AGPL 义务的企业，可申请[单独商业授权](COMMERCIAL-LICENSE.md)。加入 Rion 的付费社群不会自动改变软件许可证；社群提供的是安装适配、工作流配置、案例、持续更新和实践支持。
+
+第三方依赖继续遵循各自许可证，仓库根许可证不会替换依赖项目的授权声明。已经依据 AGPL 获得的公开版本许可不可撤销，但未来版本可以采用不同的发布方式。
