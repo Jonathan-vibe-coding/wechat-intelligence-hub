@@ -50,10 +50,11 @@ done
 target_dir="$prefix/bin"
 target="$target_dir/rion-wechat-cli"
 compat_target="$target_dir/rion-wechat-reader"
+access_target="$target_dir/rion-wechat-access"
 runtime_dir="$prefix/share/rion-wechat-cli"
 engine="$runtime_dir/rion_wechat_reader.py"
 if [ "$force" -ne 1 ]; then
-  for candidate in "$target" "$compat_target"; do
+  for candidate in "$target" "$compat_target" "$access_target"; do
     if [ -e "$candidate" ]; then
       echo "目标已存在，未覆盖：${candidate}（确认升级时使用 --force）" >&2
       exit 3
@@ -64,8 +65,10 @@ fi
 mkdir -p "$target_dir"
 mkdir -p "$runtime_dir"
 install -m 0755 "$source_dir/rion_wechat_reader.py" "$engine"
+install -m 0755 "$source_dir/rion_wechat_access.py" "$runtime_dir/rion_wechat_access.py"
 install -m 0755 "$source_dir/launcher.sh" "$target"
 install -m 0755 "$source_dir/launcher.sh" "$compat_target"
+install -m 0755 "$source_dir/launcher.sh" "$access_target"
 
 if [ "$with_sqlcipher" -eq 1 ]; then
   python3 -m venv "$runtime_dir/venv"
@@ -108,7 +111,10 @@ fi
 
 echo "Installed: $target"
 echo "Compatibility alias: $compat_target"
+echo "Optional experimental access helper: $access_target (not executed by installation)"
 if [ "$with_sqlcipher" -eq 1 ]; then
   echo "SQLCipher runtime: $runtime_dir/venv"
 fi
-echo "Next: $target self-test && $target setup --pretty"
+echo "Next: $target self-test; then $target access-plan --pretty"
+echo "Setup configures supplied inputs; it does not acquire keys. Follow the access-plan state."
+echo "Guided first access: ask Codex to follow the wechat-cli Skill's access.sh onboard workflow."

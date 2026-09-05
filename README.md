@@ -4,7 +4,7 @@
 
 这不是 Prompt 大礼包，而是一个独立的微信旗舰项目。仓库同时提供只读数据入口和情报工作流，并配有可执行入口、边界、测试和全虚构样例。
 
-当前首发版本为 `v0.9.2-preview.2`。微信相关代码已经具备公开测试条件，但不是“安装后自动读取所有人的完整微信历史”：完整数据库模式需要使用者自行提供其有权访问的本地数据库和访问材料；项目不从微信进程提取密钥，不重签名、不注入、不 Hook 微信。
+当前首发版本为 `v0.9.2-preview.2`。微信相关代码已经具备公开测试条件，但不是“安装后自动读取所有人的完整微信历史”：完整数据库模式需要本人授权的本地数据库和访问材料。Reader 核心不获取密钥、不重签名、不注入、不 Hook 微信；可选的实验性接入助手有独立授权和副作用边界，见下文。
 
 ## 一个产品，两个 Skill
 
@@ -24,6 +24,23 @@ Rion 的通用 Skill 合集 `rionwu-skills` 只负责收录、发现和链接本
 
 ## 安装
 
+### 直接让Codex安装和配置
+
+把下面这段发给Codex即可，不需要自己逐条执行命令：
+
+```text
+请从 https://github.com/Rion-Wu-tech/wechat-intelligence-hub 安装微信CLI和微信个人情报库，接入这台电脑上我自己的微信。
+先读取仓库说明，检查是否已经安装、当前配置是否可用；已有可用配置或key就复用，不覆盖我的个人Profile和数据。
+缺少依赖由你处理；确实缺key时，由你核验并准备固定版本工具，说明影响、经我确认后执行。我负责登录微信和完成系统授权，不会把密码或key发给你。
+完成数据库验证和配置后，告诉我能读取哪些范围、还有什么未就绪；再协助初始化个人情报库。遇到错误请定位并修复，不要把一堆命令交给我，也不要无限重试。
+```
+
+这是有人确认关键操作的接入工作流，不是无条件、无人值守的解密。已有安装如何升级、微信升级后如何排障，见[配置与排障提示词](docs/USAGE.md#让codex处理配置与排障)。
+
+### 手动安装入口
+
+**先确认接入条件：安装成功不等于已能读取聊天。** 已有本机访问材料可直接验证、导入；没有key时，由Codex按[五步首次接入工作流](skills/wechat-cli/references/access-onboarding.md)准备固定版本工具，经审核和明确确认后尝试获取，可能重启微信和重签名副本。用户只需登录、确认影响和完成系统授权，不需要复制key。仓库不捆绑获取工具，安装和日常日报均不会触发获取；macOS新机器获取路径尚未实测，不保证所有版本可用。请勿向维护者、社群或Issue发送key、密码和数据库。
+
 克隆仓库：
 
 ```bash
@@ -39,6 +56,10 @@ cd wechat-intelligence-hub
 
 不传 Skill 名称时会安装 `wechat-cli`、`wechat-intelligence-hub` 及其本地引擎。即使只指定 `wechat-intelligence-hub`，安装器也会自动补齐它依赖的 `wechat-cli`；用户不需要手工拼装两套组件。
 
+安装后可以直接对Codex说：
+
+> 用 $wechat-cli 帮我接入这台电脑上我自己的微信。已有配置或key就复用；没有就帮我准备工具，说明影响并确认后获取，再完成验证和配置。
+
 安装 `wechat-cli` Skill 时会同时安装 Rion 自有的 `rion-wechat-reader` 核心。新用户无需第三方二进制即可检查本机覆盖范围，并在 macOS 上读取系统实际保留的微信通知预览；该模式只覆盖入站预览，不能代表完整聊天记录。v0.9.2-preview.2 的公开接口已与旧 `wechat-cli 1.6.19` 的 29 项只读工具、266 个输入字段对齐，可读取用户显式提供的 schema-2 salt-key 授权材料，并安装隔离 SQLCipher 与 Zstandard 运行依赖。当前本机已完成新旧 CLI 真实数据对照、当前 macOS 图片/视频/文件路径验证和微信个人情报库端到端索引验证；其他微信版本仍按能力矩阵逐项积累。
 
 需要独立命令行入口时只安装一个 CLI：
@@ -47,10 +68,12 @@ cd wechat-intelligence-hub
 projects/rion-wechat-reader/install.sh --with-sqlcipher
 rion-wechat-cli self-test
 rion-wechat-cli self-test --require-sqlcipher
-rion-wechat-cli setup --pretty
+rion-wechat-cli access-plan --pretty
 ```
 
-完整历史和实时数据库读取目前要求用户自行提供有权访问的本地数据库与访问材料。公开代码不从微信进程提取密钥，不重签名、不注入、不 Hook 微信。配置方法与准确的成熟度说明见 `projects/rion-wechat-reader/README.md`。没有数据库读取条件时，仍可运行仓库内的全虚构 Demo，验证微信个人情报库的索引、判断与报告链路。
+`ready` 表示复用已有配置；`ready_to_configure` 才继续用相同输入运行 `setup`；`needs_access` 表示缺少访问材料，不要重复运行setup。JSON顶层 `ok: true` 仅表示诊断完成，请查看 `data.state`。部分覆盖、驱动缺失、多账号和权限问题会分别给出下一步。
+
+完整历史和实时数据库读取要求有权访问的本地数据库与访问材料，且仅覆盖已同步到本机的数据。只读 Reader 与可选接入助手的边界见 [Reader 说明](projects/rion-wechat-reader/README.md)。没有数据库读取条件时，仍可运行全虚构 Demo，验证索引、判断与报告链路。
 
 安装 `wechat-intelligence-hub` 时，脚本会同时把经过隐私扫描的本地引擎放进 Codex 目录，正常调用无需再配置 `WECHAT_HUB_HOME`。先用虚构数据运行 Demo：
 

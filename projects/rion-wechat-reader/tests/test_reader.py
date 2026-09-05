@@ -346,6 +346,115 @@ class ReaderContractTest(unittest.TestCase):
         self.assertEqual(configured["sns_db"], str(self.sns.resolve()))
         self.assertEqual(configured["hardlink_db"], str(self.hardlink.resolve()))
 
+    def test_access_plan_reuses_ready_config_without_writing(self):
+        before = {p: p.read_bytes() for p in (self.config, self.keys, self.session, self.contact, self.message)}
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "ready")
+        self.assertTrue(plan["live_database_read_ok"])
+        self.assertFalse(any(plan["performed"].values()))
+        self.assertEqual(before, {p: p.read_bytes() for p in before})
+        output = json.dumps(plan)
+        for private in (str(self.data_root), "wxid_alice", "方案什么时候发"):
+            self.assertNotIn(private, output)
+
+    def test_access_plan_does_not_write_first_run_config(self):
+        config = Path(self.temp.name) / "not-created.json"
+        plan = self.run_with_config(config, "access-plan", "--database-root", str(self.data_root), "--keys-file", str(self.keys))["data"]
+        self.assertEqual(plan["state"], "ready_to_configure")
+        self.assertFalse(config.exists())
+        self.assertFalse(plan["live_database_read_ok"])
+
+    def test_access_plan_explicit_root_does_not_reuse_unrelated_ready_config(self):
+        root = Path(self.temp.name) / "another-account"
+        root.mkdir()
+        (root / "encrypted.db").write_bytes(b"unknown-database")
+        keys = root / "missing-keys.json"
+        plan = self.run_cli("access-plan", "--database-root", str(root), "--keys-file", str(keys))["data"]
+        self.assertEqual(plan["state"], "needs_access")
+        self.assertFalse(keys.exists())
+        self.assertFalse(plan["performed"]["provider_execution"])
+
+    def test_access_plan_rejects_broad_key_permissions(self):
+        self.keys.chmod(0o644)
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "unsafe_key_permissions")
+        self.assertEqual(self.keys.stat().st_mode & 0o777, 0o644)
+
+    def test_access_plan_empty_key_map_is_missing_material(self):
+        root = Path(self.temp.name) / "empty-key-map"
+        root.mkdir()
+        (root / "encrypted.db").write_bytes(b"unknown-database")
+        plan = self.run_cli("access-plan", "--database-root", str(root), "--keys-file", str(self.keys))["data"]
+        self.assertEqual(plan["state"], "needs_access")
+
+    def test_access_plan_invalid_material_is_redacted(self):
+        secret = "45" * 32
+        self.keys.write_text('{"secret":"' + secret, encoding="utf-8")
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "invalid_access_material")
+        self.assertNotIn(secret, json.dumps(plan))
+        self.assertNotIn(str(self.keys), json.dumps(plan))
+
+    def test_access_plan_malformed_config_is_redacted(self):
+        self.config.write_text("not-json-private-content", encoding="utf-8")
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "configuration_check_failed")
+        self.assertNotIn("not-json-private-content", json.dumps(plan))
+
+    def test_access_plan_requires_account_selection(self):
+        root = Path(self.temp.name) / "accounts"
+        for name in ("account-a", "account-b"):
+            (root / name / "db_storage").mkdir(parents=True)
+        plan = self.run_cli("access-plan", "--database-root", str(root))["data"]
+        self.assertEqual(plan["state"], "account_selection_required")
+        self.assertEqual(plan["counts"]["account_candidates"], 2)
+        self.assertNotIn("account-a", json.dumps(plan))
+
+    def test_access_plan_scan_limit_is_not_ready(self):
+        plan = self.run_cli("access-plan", "--database-root", str(self.data_root), "--max-files", "1")["data"]
+        self.assertEqual(plan["state"], "scan_incomplete")
+
+    def test_access_plan_unreadable_file_is_not_missing_key(self):
+        (self.data_root / "broken.db").symlink_to(self.data_root / "does-not-exist")
+        plan = self.run_cli("access-plan", "--database-root", str(self.data_root))["data"]
+        self.assertEqual(plan["state"], "filesystem_access_required")
+
+    def test_access_plan_partial_coverage_is_not_ready(self):
+        (self.data_root / "unresolved.db").write_bytes(b"unknown-database")
+        plan = self.run_cli("access-plan", "--database-root", str(self.data_root))["data"]
+        self.assertEqual(plan["state"], "partial")
+        self.assertFalse(plan["live_database_read_ok"])
+
+    def test_access_plan_missing_database_does_not_request_key(self):
+        self.message.unlink()
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "database_missing")
+
+    def test_access_plan_missing_core_key(self):
+        self.message.write_bytes(b"unknown-database")
+        plan = self.run_cli("access-plan")["data"]
+        self.assertEqual(plan["state"], "needs_access")
+        self.assertEqual(plan["counts"]["core_databases_without_key"], 1)
+
+    @unittest.skipIf(SQLCIPHER is None, "SQLCipher driver unavailable")
+    def test_access_plan_verifies_encrypted_candidates_without_saving_config(self):
+        root = Path(self.temp.name) / "encrypted-plan"
+        root.mkdir()
+        key = "36" * 32
+        for source in (self.session, self.contact, self.message):
+            self.encrypt_fixture(source, root / source.name, key)
+        keys = root / "keys.json"
+        keys.write_text(json.dumps({"keys": {"*": key}}), encoding="utf-8")
+        keys.chmod(0o600)
+        config = root / "config.json"
+        plan = self.run_with_config(config, "access-plan", "--database-root", str(root), "--keys-file", str(keys))["data"]
+        self.assertEqual(plan["state"], "ready_to_configure")
+        self.assertNotIn(key, json.dumps(plan))
+        self.assertFalse(config.exists())
+        keys.write_text(json.dumps({"keys": {"*": "37" * 32}}), encoding="utf-8")
+        failed = self.run_with_config(config, "access-plan", "--database-root", str(root), "--keys-file", str(keys))["data"]
+        self.assertEqual(failed["state"], "verification_failed")
+
     def test_setup_reports_the_exact_encrypted_database_blocker(self):
         encrypted_root = Path(self.temp.name) / "encrypted-only"
         encrypted_root.mkdir()

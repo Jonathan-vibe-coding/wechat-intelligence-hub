@@ -11,3 +11,7 @@ tmp/
 *.sqlite3
 config/profile.local.json
 release-manifest.local.json
+keys.json
+all_keys.json
+access-runs/
+verified-access-*/

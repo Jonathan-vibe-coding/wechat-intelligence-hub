@@ -12,15 +12,19 @@
 - 用户自行提供并有权使用的 SQLite/WCDB 数据库与密钥输入；
 - macOS Notification Center 微信通知预览读取，作为明确不完整的降级后端；
 - 查询前复制数据库和 WAL/SHM 到私有临时目录，不直接打开微信正在写入的原文件。
-- `setup` 单命令首次配置，以及用于高级排障的 `discover`、`init`、`doctor`；
+- `access-plan` 只读接入诊断、`setup` 首次配置，以及用于高级排障的 `discover`、`init`、`doctor`；
 - 独立安装器，不要求先安装 Codex Skill。
 
-它不提供：
+Reader 核心不提供：
 
 - 从微信进程内存提取密钥；
 - 重签名、注入、Hook 或控制微信；
 - 自动发送、删除、转发或修改消息；
 - 把通知预览冒充为完整聊天记录。
+
+另附可选的 `rion-wechat-access` 实验性助手，支持检查指定外部工具、验证并接入已有材料，以及经单独确认后尝试 macOS 本机获取。它不属于上述只读接口，不下载或附带获取工具；可能重启微信并重签名副本。新机器获取路径尚未实测，不支持 Windows 获取。见[实验性接入说明](../../skills/wechat-cli/references/experimental-access.md)。
+
+统一首次接入入口为 `rion-wechat-access onboard`，默认只检查；`--apply`允许验证接入，获取分支仍要求单独审核和确认。配套Skill负责准备工具、选择参数和验收，用户无需手工复制key。已有配置可用时直接复用。
 
 ## 快速检查
 
@@ -28,7 +32,7 @@
 ./install.sh --with-sqlcipher
 rion-wechat-cli self-test
 rion-wechat-cli self-test --require-sqlcipher
-rion-wechat-cli setup --pretty
+rion-wechat-cli access-plan --pretty
 rion-wechat-cli tools --profile all --pretty
 ```
 

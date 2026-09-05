@@ -4,7 +4,7 @@ Please do not open a public issue containing chat messages, contact details, loc
 
 Before reporting a bug, reproduce it with the bundled fictional samples whenever possible. If a private report is required, contact the maintainer through a private channel and share the minimum evidence needed.
 
-The WeChat integrations in this repository are read-only. They do not send messages or operate the WeChat UI. Users remain responsible for local data access, backups, applicable platform rules, and legal compliance.
+The Reader and Intelligence Hub are read-only with respect to WeChat: they do not send messages or automate replies. The separate experimental `rion-wechat-access` helper is not read-only: after explicit review and confirmation it can invoke an external local provider with macOS administrator authorization, which may restart WeChat, debug its process and re-sign a shadow copy. Installation and daily reports never invoke acquisition. No provider is bundled or downloaded by the installer/helper; when first access is explicitly requested, Codex may prepare a pinned, reviewed provider separately. Acquisition compatibility on a fresh machine is not yet verified. See [the authorization and recovery boundaries](skills/wechat-cli/references/experimental-access.md). Users remain responsible for local data access, backups, applicable platform rules, and legal compliance.
 
 Never commit:
 

@@ -24,6 +24,8 @@ description: WeChat Intelligence Hub（微信个人情报库），本地只读�
 
 ## First-Run Personalization
 
+首次真实数据接入或读取失败时，先由 `wechat-cli` 运行 `access-plan` 并按其接入指引处理。安装成功、个人Profile就绪和数据库可读是不同状态；缺key时不要继续空跑日报，也不要把通知预览冒充完整历史。现有配置可读则直接复用，不重复获取key。
+
 首次安装、`profile-status` 返回 `needs_context`，或用户的月度/季度重点明显变化时，读取 [references/onboarding.md](references/onboarding.md)。优先使用用户已有的个人说明、人生使用说明书、OKR 或当前计划等本地文档；没有时生成准备清单，不要假装已经了解用户。用 `profile-init` 把重点方向、个人关键词、自定义行业主题和本地文档路径写入私有 Profile。
 
 主动建议用户在微信中按自己的关系和工作流建立 2–5 个标签，例如客户、同行、渠道、供应商、自媒体网友或品牌方。这些名称只是示例，不是公共默认工作流。可以只读列出现有标签并给候选建议，但不得自动修改微信标签，也不得未经确认猜测标签含义。

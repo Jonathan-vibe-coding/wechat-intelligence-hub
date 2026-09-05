@@ -17,6 +17,7 @@ import hashlib
 import html
 import json
 import os
+import platform
 import plistlib
 import re
 import shutil
@@ -40,6 +41,7 @@ DEFAULT_WECHAT_ROOTS = [
 ]
 
 TOOL_SPECS: dict[str, dict[str, Any]] = {
+    "access-plan": {"aliases": [], "properties": ["database_root", "keys_file", "max_files"]},
     "sessions": {"aliases": [], "properties": ["keyword", "limit", "type_filter"]},
     "contacts": {"aliases": [], "properties": ["friends_only", "groups_only", "keyword", "limit"]},
     "resolve-chat": {"aliases": ["resolve_chat"], "properties": ["chat", "keyword", "limit", "query", "type_filter"]},
@@ -1890,7 +1892,13 @@ def discover_databases(root: Path, max_files: int, keys_file: Path | None = None
                         break
                     path = Path(dirpath) / filename
                     scanned += 1
-                    if not sqlite_header(path):
+                    try:
+                        with path.open("rb") as handle:
+                            plaintext = handle.read(16) == b"SQLite format 3\x00"
+                    except OSError:
+                        scan_errors += 1
+                        continue
+                    if not plaintext:
                         unreadable_or_encrypted += 1
                         locked_paths.append(path)
                         continue
@@ -2010,6 +2018,112 @@ def infer_self_username(
     return ranked[0]
 
 
+def access_plan(
+    config_path: Path,
+    database_root: Path | None = None,
+    keys_file: Path | None = None,
+    max_files: int = 500,
+) -> dict[str, Any]:
+    """Inspect access prerequisites without acquiring keys or changing configuration.
+
+    Return only counts and fixed guidance: upstream errors and account paths may
+    contain private material and must not become a shareable support report.
+    """
+    result: dict[str, Any] = {
+        "schema_version": 1,
+        "environment": {"system": platform.system(), "architecture": platform.machine(), "reader_version": VERSION},
+        "state": "needs_database_location",
+        "live_database_read_ok": False,
+        "scope": "not_verified",
+        "performed": {"key_acquisition": False, "configuration_write": False, "provider_execution": False},
+        "counts": {},
+        "retry_policy": "同样的错误不循环重试；条件改变后再检查。",
+        "provider": {
+            "mode": "external_optional_not_executed",
+            "compatibility": "not_tested_by_this_check",
+            "confirmation_required": ["process_access", "wechat_restart_or_resign", "administrator_credential_storage"],
+        },
+    }
+
+    def finish(state: str, message: str, action: str) -> dict[str, Any]:
+        result.update(state=state, message=message, next_actions=[action])
+        return result
+
+    try:
+        config = load_json(config_path)
+        selected_keys = keys_file or Path(os.environ.get(
+            "RION_WECHAT_READER_KEYS",
+            str(config.get("keys_file") or "~/.config/rion-wechat-reader/keys.json"),
+        )).expanduser()
+        if selected_keys.exists() and not safe_mode(selected_keys):
+            return finish("unsafe_key_permissions", "访问材料权限过宽，尚未读取其内容。", "在本机收紧该文件权限至0600后再检查；不要上传文件。")
+        try:
+            material = load_json(selected_keys)
+        except ReaderError:
+            return finish("invalid_access_material", "访问材料无法读取或不是JSON对象。", "检查用户明确提供的文件与格式；不要打印文件内容或填入示例key。")
+        entries = material.get("salt_keys", material.get("keys", {
+            k: v for k, v in material.items() if k not in {"database_root", "db_root", "schema_version", "wxid", "image_key"}
+        }))
+        has_material = isinstance(entries, dict) and bool(entries)
+        # Explicit inputs describe a different candidate, not the active setup.
+        if config_path.is_file() and database_root is None and keys_file is None:
+            db = DatabaseSet(config_path)
+            state = status(db)["status"]
+            result["counts"]["configured_message_databases"] = len(db.message_dbs)
+            result["counts"]["missing_databases"] = state["missing_database_count"]
+            if state["live_database_read_ok"]:
+                result.update(live_database_read_ok=True, scope="configured_local_databases_only")
+                return finish("ready", "已有配置可读，无需重新获取key。", "直接使用读取命令；抽检所需私聊、群聊、标签和时间范围，不代表手机完整历史已同步。")
+            if state["missing_database_count"]:
+                return finish("database_missing", "配置指向的部分数据库已不存在。", "核对当前账号、迁移和数据库位置；不要先重新获取key。")
+            paths = [p for p in [db.session_db, db.contact_db, *db.message_dbs] if p]
+            missing_keys = sum(1 for p in paths if not sqlite_header(p) and not db.key_for(p))
+            result["counts"]["core_databases_without_key"] = missing_keys
+            if missing_keys:
+                return finish("needs_access", "部分核心数据库缺少匹配的访问材料。", "已有材料可显式导入；没有材料则阅读接入指引，先审计并确认外部provider的影响，不循环setup。")
+            if not state["sqlcipher_driver_ready"] or (state["zstandard_required"] and not state["zstandard_driver_ready"]):
+                return finish("dependency_required", "数据库读取依赖尚未就绪。", "安装当前运行环境缺少的SQLCipher或zstandard依赖，再运行doctor；无需重新获取key。")
+            if db.configured():
+                return finish("verification_failed", "现有材料或数据库结构未通过读取验证。", "分别核对材料、加密参数与数据库结构；此结果不能证明一定是key错误。")
+
+        root = database_root
+        if root is None:
+            bundled_root = material.get("database_root") or material.get("db_root")
+            root = Path(str(bundled_root)).expanduser() if bundled_root else default_wechat_root()
+        if root is None or not root.is_dir():
+            return finish("needs_database_location", "尚未找到所选账号的数据库目录。", "确认本人微信已登录并有本地记录；显式指定--database-root，本命令不会全盘搜索key。")
+        account_roots = [p for p in root.glob("*/db_storage") if p.is_dir()]
+        if (root / "db_storage").is_dir():
+            account_roots.append(root / "db_storage")
+        if len(account_roots) > 1:
+            result["counts"]["account_candidates"] = len(account_roots)
+            return finish("account_selection_required", "发现多个账号目录，未自动选择或读取数据库。", "由用户确认目标账号，再指定该账号的db_storage目录。")
+        discovery = discover_databases(root, max(1, max_files), selected_keys if selected_keys.is_file() else None)
+        counts = {kind: len(discovery["candidates"][kind]) for kind in ("session", "contact", "messages")}
+        result["counts"].update(counts, scanned_databases=discovery["scanned_file_count"], unresolved_databases=discovery["unresolved_database_count"])
+        if discovery["scan_error_count"]:
+            return finish("filesystem_access_required", "扫描存在文件访问错误，结果不完整。", "核对所选目录的文件访问权限；完全磁盘访问不等于进程调试权限。")
+        if discovery["truncated"]:
+            return finish("scan_incomplete", "达到数据库扫描上限，不能据此判定完整覆盖。", "缩小到单一账号目录，或显式提高--max-files后再检查。")
+        if counts["session"] > 1 or counts["contact"] > 1:
+            return finish("database_layout_ambiguous", "核心数据库候选不唯一。", "明确目标目录或通过init指定数据库，不能自动合并账号。")
+        core_found = counts["session"] == 1 and counts["contact"] == 1 and counts["messages"] > 0
+        if discovery["unresolved_database_count"]:
+            if core_found:
+                result["scope"] = "partial_candidates_only"
+                return finish("partial", "已识别核心数据库，但仍有未能识别或打开的数据库。", "核对缺失项与目标时间范围；可配置已验证核心库，但不可声称全量覆盖。")
+            if not has_material:
+                return finish("needs_access", "存在不能直接读取的数据库，尚无访问材料。", "显式导入本人已有材料，或先确认外部获取方案；不可读文件也可能损坏，不等于都已证明加密。")
+            if sqlcipher_driver()[0] is None:
+                return finish("dependency_required", "有访问材料，但缺少SQLCipher运行依赖。", "先安装SQLCipher，再验证材料；不要重复获取key。")
+            return finish("verification_failed", "已有材料未能识别所需核心数据库。", "检查账号、salt映射、加密参数与版本；文件存在不等于key已验证。")
+        if core_found:
+            return finish("ready_to_configure", "核心数据库候选可读，尚未写入配置。", "用相同database-root和keys-file运行setup，然后doctor及真实数据抽检。")
+        return finish("database_layout_unsupported", "未识别到所需的核心数据库结构。", "核对目录与微信版本；不要将结构不支持当成缺key。")
+    except (ReaderError, OSError, ValueError, TypeError, AttributeError):
+        return finish("configuration_check_failed", "配置或本地文件检查失败，详细原文未输出以免泄露隐私。", "在本机检查配置字段和文件访问，修复后重试；不要提交原始配置到Issue。")
+
+
 def setup_cli(
     config_path: Path,
     database_root: Path | None,
@@ -2045,6 +2159,7 @@ def setup_cli(
             message = (
                 f"发现 {encrypted_count} 个无法由 SQLite 直接打开的数据库文件。"
                 "当前 CLI 缺少这些数据库的授权访问材料，不能完成完整历史读取。"
+                "请运行 access-plan 检查接入前提；setup不会获取key，反复运行不能补齐材料。"
             )
             code = "database_access_material_required"
         else:
@@ -2549,6 +2664,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--require-sqlcipher", action="store_true")
     sub.add_parser("status")
     sub.add_parser("doctor")
+    p = sub.add_parser("access-plan")
+    p.add_argument("--database-root")
+    p.add_argument("--keys-file")
+    p.add_argument("--max-files", type=int, default=500)
     p = sub.add_parser("setup")
     p.add_argument("--database-root")
     p.add_argument("--keys-file", default="~/.config/rion-wechat-reader/keys.json")
@@ -2849,6 +2968,13 @@ def main(argv: list[str] | None = None) -> int:
             emit(command, result, args.pretty)
             if not result["passed"]:
                 return 1
+        elif command == "access-plan":
+            emit(command, access_plan(
+                Path(args.config).expanduser(),
+                Path(args.database_root).expanduser() if args.database_root else None,
+                Path(args.keys_file).expanduser() if args.keys_file else None,
+                max(1, args.max_files),
+            ), args.pretty)
         elif command == "setup":
             emit(
                 command,

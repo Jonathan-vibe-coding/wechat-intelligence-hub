@@ -85,9 +85,13 @@ for skill_name in "$@"; do
     echo "Already exists, not overwritten: $wechat_reader_target" >&2
     exit 3
   fi
-  if [ "$skill_name" = "wechat-cli" ] && [ "$with_sqlcipher" -eq 1 ] && [ -e "$codex_root/bin/rion-wechat-cli" ]; then
-    echo "Already exists, not overwritten: $codex_root/bin/rion-wechat-cli" >&2
-    exit 3
+  if [ "$skill_name" = "wechat-cli" ] && [ "$with_sqlcipher" -eq 1 ]; then
+    for entry in rion-wechat-cli rion-wechat-reader rion-wechat-access; do
+      if [ -e "$codex_root/bin/$entry" ]; then
+        echo "Already exists, not overwritten: $codex_root/bin/$entry" >&2
+        exit 3
+      fi
+    done
   fi
 done
 
@@ -129,7 +133,11 @@ if [ "$installed_wechat_reader" -eq 1 ]; then
 
 Rion WeChat CLI is installed in read-only mode.
 Ask Codex to run the installed wechat-cli Skill's reader.sh self-test,
-then its single setup command.
+then reader.sh access-plan --pretty. Follow its state before running setup.
+For guided first access, ask Codex to run access.sh onboard and follow the
+five-step onboarding reference. You do not need to copy keys into the chat.
+Installation does not acquire database keys. Never send keys or passwords
+to Codex, maintainers, community chats, or Issues.
 
 Without authorized database inputs, macOS notification previews may be
 available as an explicitly incomplete incoming-only fallback.

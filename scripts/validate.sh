@@ -44,11 +44,14 @@ trap 'rm -rf "$reader_install_test"' EXIT
 "$reader_install_test/bin/rion-wechat-cli" self-test >/dev/null
 HOME="$reader_install_test/home" "$reader_install_test/bin/rion-wechat-cli" doctor >/dev/null
 "$reader_install_test/bin/rion-wechat-reader" version >/dev/null
+"$reader_install_test/bin/rion-wechat-access" --help >/dev/null
+"$reader_install_test/bin/rion-wechat-access" onboard --help >/dev/null
 test -f "$reader_install_test/share/rion-wechat-cli/rion_wechat_reader.py"
 rm -rf "$reader_install_test"
 trap - EXIT
 
 python3 -m py_compile "$repo_root/projects/rion-wechat-reader/rion_wechat_reader.py"
+python3 -m py_compile "$repo_root/projects/rion-wechat-reader/rion_wechat_access.py"
 
 python3 -m py_compile "$repo_root/projects/rion-wechat-reader/scripts/capability_gap.py"
 python3 -m py_compile "$repo_root/projects/rion-wechat-reader/scripts/live_parity.py"
@@ -57,7 +60,8 @@ bash -n \
   "$repo_root/projects/rion-wechat-reader/install.sh" \
   "$repo_root/projects/rion-wechat-reader/launcher.sh" \
   "$repo_root/projects/rion-wechat-reader/scripts/validate_sqlcipher.sh" \
-  "$repo_root/skills/wechat-cli/scripts/reader.sh"
+  "$repo_root/skills/wechat-cli/scripts/reader.sh" \
+  "$repo_root/skills/wechat-cli/scripts/access.sh"
 
 if rg -n 'command -v wechat-cli' "$repo_root/skills/wechat-cli/scripts/reader.sh"; then
   echo "The public wrapper must not silently discover an old wechat-cli installation." >&2
@@ -84,11 +88,14 @@ trap 'rm -rf -- "$codex_skill_install_test"' EXIT
 CODEX_HOME="$codex_skill_install_test" \
   "$repo_root/scripts/install.sh"
 test -f "$codex_skill_install_test/skills/wechat-cli/SKILL.md"
+test -f "$codex_skill_install_test/skills/wechat-cli/references/experimental-access.md"
 test -f "$codex_skill_install_test/skills/wechat-intelligence-hub/SKILL.md"
 test -f "$codex_skill_install_test/share/wechat-intelligence-hub/projects/rion-wechat-reader/rion_wechat_reader.py"
 test -f "$codex_skill_install_test/share/wechat-intelligence-hub/projects/wechat-intelligence-hub/wechat_intelligence_hub.py"
 PATH="/usr/bin:/bin" CODEX_HOME="$codex_skill_install_test" \
   "$codex_skill_install_test/skills/wechat-cli/scripts/reader.sh" self-test >/dev/null
+PATH="/usr/bin:/bin" CODEX_HOME="$codex_skill_install_test" \
+  "$codex_skill_install_test/skills/wechat-cli/scripts/access.sh" --help >/dev/null
 HOME="$codex_skill_install_test/home" PATH="/usr/bin:/bin" CODEX_HOME="$codex_skill_install_test" \
   "$codex_skill_install_test/skills/wechat-intelligence-hub/scripts/hub.sh" --help >/dev/null
 rm -rf -- "$codex_skill_install_test"

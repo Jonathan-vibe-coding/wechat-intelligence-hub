@@ -10,19 +10,62 @@ cd wechat-intelligence-hub
 ./scripts/install.sh --with-sqlcipher
 ```
 
-重新打开 Codex 后，先检查 Reader：
+重新打开 Codex 后，可以让它执行完整的首次接入工作流：
 
 ```text
-$wechat-cli 运行 self-test，然后开始 setup；告诉我当前是完整数据库模式、通知预览模式，还是仍缺少访问材料。
+$wechat-cli 帮我接入这台电脑上我自己的微信。已有配置或key就复用；没有就帮我准备适配工具，说明影响并确认后获取，再完成验证和配置。不要让我复制key或手工拼命令。
 ```
 
 三种常见状态：
 
 - **完整数据库模式**：可以在本地授权和实际兼容范围内查询历史聊天与近期新增消息。
 - **通知预览模式**：只能读取 macOS 实际保留的入站通知预览，不代表完整聊天记录。
-- **缺少访问材料**：先运行全虚构 Demo，或按 `setup` 给出的检查结果补齐自己有权使用的本地输入。
+- **缺少访问材料**：Codex按[首次接入流程](../skills/wechat-cli/references/access-onboarding.md)准备工具并请求必要确认；不兼容或暂不授权时可运行全虚构Demo，不能假装已读取真实聊天。
 
-项目不会提取微信数据库密钥，不重签名、不注入、不 Hook 微信。
+日常 Reader 不获取密钥、不重签名、不注入、不 Hook 微信。缺少访问材料且用户主动要求接入时，另见[实验性接入助手](../skills/wechat-cli/references/experimental-access.md)；它可能调用需单独审核和确认的外部获取工具，不能当作普通只读查询。
+
+### 让Codex处理配置与排障
+
+**还没安装：**直接把下面这段交给Codex。
+
+```text
+请读取 https://github.com/Rion-Wu-tech/wechat-intelligence-hub 的最新说明，帮我安装两个Skill并接入我自己的微信。检查本机环境、现有安装和配置，已有可用材料就复用。
+由你执行安装、依赖处理、onboard检查、验证和配置；确实缺key时，你负责准备和核验工具，说明影响并经我确认后获取。我只负责登录微信和系统授权，不复制密码或key给你。
+完成后告诉我是否可读、覆盖哪些范围，再帮我初始化微信个人情报库。
+```
+
+**已经安装，想更新：**安装器默认拒绝覆盖现有Skill，这是保护机制，不是需要删除数据重装。
+
+```text
+请把我已安装的微信CLI和微信个人情报库更新到该GitHub仓库的最新代码。
+先确认实际使用的仓库、Skill路径和CLI运行时，对比现有改动；保留我的key、数据库配置、个人Profile、历史报告和个性化设置，不整目录删除重装。
+同步适用的代码和工作流后运行self-test、onboard和doctor，验证仍能读取。如果onboard提示未知命令，检查是否仍调用旧运行时或旧Skill，不要重新取key。
+```
+
+**安装失败、读不到聊天或微信刚升级：**让Codex诊断，不需要自己猜是不是key错了。
+
+```text
+用 $wechat-cli 帮我排查本机微信读取问题。先查当前微信版本、CLI运行时、self-test和access-plan/onboard结果，区分缺依赖、目录或权限问题、多账号、缺key以及版本兼容问题。
+已有可用配置不要重新获取key；失败配置不要直接覆盖。能修复的由你执行，涉及退出/重启微信、重签名副本或管理员权限时先说明影响并等我确认。
+失败后不要无限重试，也不要要求我把密码、key、数据库或完整聊天发到这里。告诉我卡在哪一步、已经验证什么、下一步需要我做什么。
+```
+
+**Codex应当如何处理结果：**
+
+| 检查结果 | Codex下一步 |
+|---|---|
+| `ready` | 复用配置，按需要抽检，不重新取key。 |
+| `ready_to_configure` | 用已验证的同一组输入执行 `onboard --apply`，再验收。 |
+| `dependency_required` | 找到实际CLI运行环境，修复缺少的依赖，而不是在无关Python环境反复安装。 |
+| `needs_database_location` / `account_selection_required` | 核对本机登录和目录；多账号请用户选择，不能混读。 |
+| `needs_access` / `provider_required` | 按首次接入工作流准备、审核固定版本工具；不让用户手工找key。 |
+| `provider_review_required` / `authorization_required` | 完成来源核验或等待用户确认；检查成功不等于用户已授权。 |
+| `partial` / `scan_incomplete` | 说明缺失范围，按原因修复或调整扫描范围，不宣称完整历史。 |
+| `existing_configuration_requires_review` / `verification_failed` | 保留原配置，核对材料、目录和版本兼容性，不自动覆盖或盲目重新获取。 |
+
+目录权限问题应在获取前解决。取消授权或失败留下恢复锁时，先确认上次进程和微信状态；不能为了重试直接删锁、清空配置或删除旧key。管理员密码只在系统授权窗口输入。
+
+如果需要反馈Issue，只提供脱敏后的系统/微信/CLI版本、固定错误代码和所处步骤。不要上传配置JSON、数据库、聊天导出、内存转储或未经检查的日志。详情见[首次接入流程](../skills/wechat-cli/references/access-onboarding.md)和[实验性获取的边界](../skills/wechat-cli/references/experimental-access.md)。
 
 ## 2. 建立个人 Profile
 
