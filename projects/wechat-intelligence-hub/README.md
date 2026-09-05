@@ -728,3 +728,11 @@ python3 wechat_intelligence_hub.py vault-scan --vault-cli samples/fake_vault_cli
 - `output/signals.json` 仍可能包含客户信息，只放本机私有目录
 - Obsidian 只存摘要、线索和行动项，不存完整聊天原文
 - 飞书里只放推进商单需要的摘要字段，不放完整私聊
+
+## 支持这个项目 / Support the Project
+
+如果微信个人情报库帮你少翻了聊天记录、找到了值得跟进的机会，欢迎给项目点个 Star。你的支持会让它持续更新，也让更多人用好自己的聊天信息。
+
+If WeChat Intelligence Hub saves you time reviewing chats or helps you spot an opportunity worth following up, please consider giving the project a Star. Your support helps it keep improving.
+
+[前往 GitHub，点个 Star / Star on GitHub](https://github.com/Rion-Wu-tech/wechat-intelligence-hub)
